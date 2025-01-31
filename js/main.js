@@ -1,1 +1,0 @@
-// Empty file - no JavaScript needed for the simple landing page

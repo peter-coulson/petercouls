@@ -3,13 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>petercouls</title>
-    <link rel="stylesheet" href="css/style.css">
+    <title>Peter Couls</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #F8F9FC;
+            color: #1F2937;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #7C3AED 0%, #2563EB 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .section-title {
+            color: #4B5563;
+            letter-spacing: 0.025em;
+        }
+        a {
+            color: #6366F1;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        a:hover {
+            color: #4F46E5;
+        }
+        .role-item {
+            border-left: 2px solid #E5E7EB;
+            padding-left: 1rem;
+            margin: 0.5rem 0;
+            transition: border-color 0.2s ease;
+        }
+        .role-item:hover {
+            border-left-color: #6366F1;
+        }
+        .builder-tag {
+            background: linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(37,99,235,0.08) 100%);
+            color: #4B5563;
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>petercouls</h1>
-        <p></p>
-    </div>
+<body class="min-h-screen py-16">
+    <main class="max-w-2xl mx-auto px-8">
+        <header class="mb-16">
+            <h1 class="text-6xl font-bold mb-3 gradient-text">petercouls</h1>
+            <p class="text-2xl mb-8">
+                <span class="builder-tag px-4 py-1 rounded-full font-medium">Builder</span>
+            </p>
+            <p class="text-lg text-gray-600 max-w-xl text-justify">At the intersection of product and engineering. I develop technical infrastructure during the day and build hobby projects at night.</p>
+        </header>
+
+        <section class="mb-16">
+            <h2 class="text-2xl font-semibold mb-6 section-title">Roles</h2>
+            <ul class="space-y-4">
+                <li class="role-item">Product manager @ <a href="https://www.quantile.com/" class="underline text-gray-900">Quantile</a> (current)</li>
+                <li class="role-item">Exeter Lead @ <a href="https://www.hackjunction.com/" class="underline text-gray-900">Junction</a></li>
+                <li class="role-item">Student @ <a href="https://www.exeter.ac.uk/" class="underline text-gray-900">Exeter University</a></li>
+            </ul>
+        </section>
+
+        <section class="mb-16">
+            <h2 class="text-2xl font-semibold mb-6 section-title">About Me</h2>
+            <div class="space-y-4 text-gray-600 max-w-xl">
+                <p class="text-justify">From a small town in Wales, I studied economics at Exeter where I became involved in the hacker community. I ran a <a href="https://excode.co.uk/" class="underline text-gray-900">coding course for 400 students</a>, and hosted a <a href="https://www.hackjunction.com/about-us" class="underline text-gray-900">Junction hackathon</a> on campus.</p>
+                <p class="text-justify">After graduating I joined Quantile, a financial optimisation service, as a product manger. Where I now split my time between developing new product features, running analysis, and writing software for the quantitative team.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="text-2xl font-semibold mb-6 section-title">Get in touch</h2>
+            <p class="text-gray-600 max-w-xl text-justify">
+                You can find me on <a href="#" class="hover:underline font-medium">X</a><br>
+                Or drop me an <a href="#" class="hover:underline font-medium">email</a>
+            </p>
+        </section>
+    </main>
 </body>
 </html>
