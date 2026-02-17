@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crime Trends in England & Wales (1898–2014/15) — Per 100,000 Population</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f1117; color: #e0e0e0; padding: 20px; }
+  h1 { text-align: center; font-size: 1.5rem; margin-bottom: 4px; color: #fff; }
+  .subtitle { text-align: center; font-size: 0.85rem; color: #888; margin-bottom: 20px; }
+  .chart-container { position: relative; width: 100%; max-width: 1200px; margin: 0 auto 20px auto; background: #1a1d27; border-radius: 12px; padding: 20px; }
+  canvas { width: 100% !important; }
+  .controls { max-width: 1200px; margin: 0 auto 16px auto; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .toggle-btn { padding: 8px 16px; border: 2px solid; border-radius: 20px; cursor: pointer; font-size: 0.82rem; font-weight: 600; transition: all 0.2s; background: transparent; }
+  .toggle-btn.active { color: #fff !important; }
+  .toggle-btn:hover { opacity: 0.85; transform: scale(1.03); }
+  .view-toggle { max-width: 1200px; margin: 0 auto 12px auto; display: flex; gap: 8px; justify-content: center; }
+  .view-btn { padding: 6px 18px; border: 1px solid #444; border-radius: 8px; cursor: pointer; font-size: 0.8rem; background: #1a1d27; color: #aaa; transition: all 0.2s; }
+  .view-btn.active { background: #2d6af6; color: #fff; border-color: #2d6af6; }
+  .note { max-width: 1200px; margin: 16px auto 0 auto; padding: 14px 18px; background: #1a1d27; border-radius: 8px; border-left: 3px solid #f59e0b; font-size: 0.78rem; color: #aaa; line-height: 1.5; }
+  .source { text-align: center; margin-top: 12px; font-size: 0.75rem; color: #666; }
+  .source a { color: #5b8af5; text-decoration: none; }
+  .aggregate-box { max-width: 1200px; margin: 0 auto 16px auto; background: #1a1d27; border-radius: 12px; padding: 16px 20px; }
+  .aggregate-box h3 { font-size: 0.9rem; color: #ccc; margin-bottom: 10px; }
+  .agg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .agg-card { background: #252836; border-radius: 8px; padding: 10px 14px; }
+  .agg-card .label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .agg-card .value { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  .agg-card .sub { font-size: 0.7rem; color: #666; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<h1>Recorded Crime in England & Wales, 1898–2014/15</h1>
+<p class="subtitle">Offences per 100,000 population (mid-year estimates) — Source: Home Office / ONS</p>
+
+<div class="view-toggle">
+  <button class="view-btn active" onclick="setView('rate')">Per 100k Population</button>
+  <button class="view-btn" onclick="setView('raw')">Raw Counts</button>
+</div>
+
+<div class="controls" id="controls"></div>
+
+<div id="aggregate-section" class="aggregate-box">
+  <h3>Aggregate Figures — <span id="agg-year-label">Latest Year</span></h3>
+  <div class="agg-grid" id="agg-grid"></div>
+</div>
+
+<div class="chart-container">
+  <canvas id="crimeChart" height="420"></canvas>
+</div>
+
+<div class="note">
+  <strong>Important caveats:</strong> These figures reflect police-recorded crime only, which is influenced by reporting practices and recording standards.
+  Major discontinuities: (1) Home Office counting rules changed April 1998; (2) National Crime Recording Standard (NCRS) introduced April 2002 — both inflated recorded figures, especially for violence. 
+  Criminal damage was not separately notifiable until 1969/1977. Drug offences were first recorded in 1983. Direct comparisons across these boundaries should be made with caution.
+</div>
+<div class="source">
+  Data: <a href="https://www.gov.uk/government/statistics/historical-crime-data" target="_blank">Home Office Historical Crime Data</a> |
+  Population: <a href="https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates/adhocs/004358englandandwalespopulationestimates1838to2014" target="_blank">ONS Mid-Year Estimates 1838–2014</a>
+</div>
+
+<script>
+const DATA = {"years": [1898, 1899, 1900, 1901, 1902, 1903, 1904, 1905, 1906, 1907, 1908, 1909, 1910, 1911, 1912, 1913, 1914, 1915, 1916, 1917, 1918, 1919, 1920, 1921, 1922, 1923, 1924, 1925, 1926, 1927, 1928, 1929, 1930, 1931, 1932, 1933, 1934, 1935, 1936, 1937, 1938, 1939, 1940, 1941, 1942, 1943, 1944, 1945, 1946, 1947, 1948, 1949, 1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957, 1958, 1959, 1960, 1961, 1962, 1963, 1964, 1965, 1966, 1967, 1968, 1969, 1970, 1971, 1972, 1973, 1974, 1975, 1976, 1977, 1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014], "categories": {"Violence Against the Person": [6.8, 6.2, 5.9, 6.3, 6.2, 5.8, 5.4, 5.7, 5.8, 6.2, 5.9, 5.9, 5.5, 5.8, 5.8, 5.5, 4.7, 3.9, 3.5, 3.0, 3.1, 4.0, 4.1, 3.7, 3.3, 3.3, 3.2, 3.8, 4.4, 4.7, 4.8, 5.0, 5.3, 5.0, 4.8, 5.2, 5.6, 6.0, 6.2, 6.6, 6.6, 7.0, 6.1, 7.0, 8.0, 9.1, 11.0, 12.5, 10.0, 10.5, 12.0, 12.0, 14.3, 14.9, 15.9, 16.1, 17.0, 17.7, 20.8, 24.4, 26.9, 30.6, 34.4, 38.1, 38.5, 42.8, 49.6, 53.6, 55.7, 60.2, 65.7, 77.6, 84.0, 95.7, 106.3, 123.9, 128.9, 143.5, 157.2, 166.2, 176.1, 191.8, 196.0, 201.9, 219.2, 224.4, 229.7, 244.1, 251.0, 281.4, 314.9, 351.1, 365.2, 375.1, 396.6, 402.3, 427.2, 414.6, 465.5, 496.6, 1118.8, 1152.5, 1347.4, 1511.9, 1591.0, 1565.4, 1510.4, 1376.8, 1292.8, 1265.5, 1194.9, 1115.7, 1062.7, 1114.4, 1357.0], "Sexual Offences": [5.5, 5.3, 4.9, 4.9, 4.5, 4.7, 4.6, 4.6, 5.1, 5.0, 5.0, 5.1, 5.5, 5.7, 6.9, 7.4, 6.7, 5.9, 5.7, 5.0, 5.6, 7.3, 8.2, 7.5, 7.9, 7.9, 8.1, 8.0, 8.8, 9.0, 8.6, 8.8, 8.9, 8.2, 8.1, 8.7, 9.8, 9.4, 10.7, 11.3, 12.2, 12.1, 11.6, 14.5, 17.7, 20.6, 21.4, 22.5, 22.9, 23.9, 25.2, 27.6, 30.1, 33.4, 34.1, 37.0, 36.4, 38.4, 38.3, 41.5, 39.2, 44.1, 43.6, 44.2, 42.9, 43.7, 42.1, 42.3, 44.4, 46.6, 48.2, 48.3, 49.4, 48.1, 47.7, 52.0, 49.9, 48.0, 44.9, 43.1, 45.2, 44.1, 42.6, 39.1, 39.8, 41.1, 40.7, 43.0, 45.4, 50.2, 52.8, 59.0, 57.4, 58.0, 58.0, 61.4, 62.5, 59.0, 61.1, 66.0, 90.9, 88.0, 107.7, 114.3, 114.6, 112.5, 103.9, 95.9, 91.5, 96.0, 96.9, 93.9, 94.8, 112.8, 153.7], "Robbery": [1.1, 0.9, 0.8, 0.7, 0.8, 0.7, 0.7, 0.7, 0.7, 0.7, 0.9, 0.6, 0.6, 0.5, 0.5, 0.4, 0.4, 0.2, 0.3, 0.4, 0.3, 0.6, 0.6, 0.6, 0.4, 0.4, 0.3, 0.3, 0.3, 0.3, 0.3, 0.4, 0.5, 0.5, 0.9, 0.5, 0.5, 0.4, 0.5, 0.5, 0.7, null, 0.9, 1.2, 1.8, 1.9, 2.2, 2.7, 2.3, 2.3, 2.5, 2.3, 2.3, 1.8, 2.3, 2.2, 1.8, 1.9, 2.2, 2.7, 3.8, 4.2, 4.4, 5.1, 5.4, 5.3, 6.5, 7.8, 9.3, 9.5, 9.9, 12.4, 12.8, 15.2, 18.1, 14.8, 17.5, 22.9, 23.5, 27.8, 26.6, 25.2, 30.3, 40.9, 46.1, 44.6, 50.1, 55.1, 60.0, 65.1, 62.6, 65.8, 71.6, 89.3, 104.0, 113.5, 117.4, 132.8, 144.0, 121.5, 162.3, 182.5, 209.6, 196.2, 171.2, 183.3, 187.9, 155.9, 146.1, 136.0, 136.8, 133.0, 115.2, 101.5, 87.5], "Burglary": [26.5, 22.0, 23.1, 25.9, 26.5, 28.8, 31.3, 31.7, 30.6, 32.8, 37.0, 37.7, 37.1, 32.9, 32.7, 32.7, 28.6, 20.6, 24.3, 29.8, 32.5, 36.5, 41.4, 42.4, 46.5, 46.1, 46.4, 45.6, 49.6, 49.3, 55.2, 56.8, 64.5, 77.6, 98.5, 91.1, 90.0, 88.1, 93.1, 109.1, 118.0, 0.0, 122.9, 135.7, 146.2, 154.3, 194.9, 284.5, 280.4, 266.5, 259.2, 208.8, 210.7, 217.7, 221.6, 199.8, 170.4, 167.6, 191.1, 232.6, 289.0, 293.4, 329.0, 355.4, 409.9, 463.8, 491.6, 527.2, 571.8, 548.0, 588.1, 851.3, 866.8, 899.8, 867.8, 776.5, 957.0, 1041.9, 1031.2, 1210.4, 1132.8, 1098.9, 1246.7, 1447.3, 1624.4, 1629.2, 1796.2, 1738.2, 1863.3, 1795.8, 1627.3, 1638.5, 1991.3, 2403.0, 2663.9, 2686.2, 2458.5, 2417.5, 2265.3, 1917.1, 1745.4, 1603.4, 1692.1, 1551.2, 1280.0, 1204.0, 1152.9, 1073.2, 1060.5, 978.8, 938.5, 892.0, 812.8, 778.3, 716.7], "Theft & Handling": [202.5, 184.4, 188.5, 190.0, 191.9, 194.6, 208.1, 210.3, 199.0, 213.9, 223.8, 219.1, 211.1, 196.2, 207.9, 196.0, 176.5, 168.9, 181.5, 204.0, 199.6, 170.1, 190.8, 191.1, 190.3, 194.7, 197.3, 199.6, 237.7, 215.8, 219.4, 225.3, 243.3, 257.8, 349.7, 400.1, 413.9, 414.2, 441.2, 468.5, 493.5, 529.4, 579.7, 715.5, 723.1, 742.1, 813.3, 879.4, 782.1, 813.4, 827.8, 708.3, 704.2, 833.3, 797.9, 717.2, 658.8, 679.7, 740.5, 823.0, 929.7, 1005.0, 1094.4, 1180.2, 1295.3, 1391.0, 1525.2, 1601.7, 1663.0, 1673.5, 1758.6, 1870.2, 1948.5, 2041.9, 2046.5, 2019.5, 2405.3, 2562.5, 2599.5, 3008.8, 2915.0, 2860.4, 2950.4, 3229.9, 3541.3, 3438.2, 3636.8, 3778.7, 4007.9, 4093.9, 3843.1, 3993.0, 4696.2, 5440.8, 5605.1, 5397.4, 5017.2, 4782.6, 4637.1, 4160.2, 4281.7, 4114.6, 6488.9, 6147.3, 5339.1, 5112.9, 4891.1, 4454.6, 4233.2, 3861.0, 3784.1, 3693.7, 3360.5, 3240.1, 3057.8], "Fraud & Forgery": [9.7, 10.1, 10.3, 11.2, 12.9, 13.1, 14.9, 14.5, 14.7, 14.9, 16.2, 17.7, 17.3, 16.2, 16.1, 15.0, 14.7, 13.5, 12.5, 13.3, 13.1, 13.9, 17.1, 20.7, 26.9, 28.0, 28.6, 28.3, 32.7, 31.6, 32.7, 33.4, 36.2, 37.9, 43.7, 45.6, 45.0, 46.4, 45.8, 40.8, 43.4, 42.4, 33.2, 41.3, 46.1, 45.6, 42.4, 43.7, 44.4, 57.5, 58.4, 72.8, 67.0, 70.3, 71.4, 73.5, 70.4, 60.9, 60.6, 68.9, 77.1, 87.4, 93.1, 100.8, 111.4, 115.9, 119.7, 121.7, 129.3, 133.4, 153.6, 161.8, 183.0, 203.0, 219.8, 223.8, 237.0, 248.7, 242.3, 243.9, 247.1, 238.4, 212.2, 214.9, 248.3, 245.5, 253.6, 270.3, 266.9, 265.3, 266.4, 266.8, 292.5, 344.3, 331.4, 319.4, 284.2, 259.4, 265.0, 264.2, 644.6, 612.4, 349.2, 322.0, 302.4, 241.7, 195.0, 130.8, 131.9, 132.6, 130.1, 129.5, 110.5, 0.0, 0.0], "Criminal Damage": [1.8, 1.7, 1.4, 1.3, 1.4, 1.6, 1.7, 1.6, 1.5, 1.5, 1.8, 1.7, 1.6, 1.9, 2.0, 1.7, 1.6, 1.2, 0.5, 0.7, 0.5, 0.8, 0.9, 1.4, 0.8, 0.7, 0.8, 0.8, 0.8, 0.7, 0.7, 0.9, 0.9, 1.0, 1.0, 1.0, 1.1, 1.1, 1.0, 1.3, 1.4, 0.0, 1.8, 1.8, 2.5, 3.4, 4.4, 6.1, 5.8, 6.8, 8.6, 9.4, 10.3, 11.4, 11.4, 12.0, 11.9, 4.9, 5.7, 6.6, 8.0, 9.0, 10.5, 12.1, 13.4, 14.8, 16.7, 17.9, 21.0, 22.2, 25.1, 9.5, 11.2, 15.1, 84.9, 106.8, 135.6, 158.8, 188.1, 601.5, 619.5, 647.3, 724.7, 779.2, 842.7, 893.5, 1001.4, 1080.9, 1167.2, 1175.0, 1181.9, 1250.0, 1450.6, 1618.1, 1754.5, 1778.4, 1816.1, 1782.6, 1850.4, 1671.6, 1820.9, 1841.4, 2118.7, 2288.8, 2234.1, 2191.0, 2181.9, 1893.9, 1696.4, 1449.5, 1248.1, 1114.5, 936.4, 888.6, 877.6], "Drug Offences": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 10.1, 13.3, 16.1, 14.7, 14.2, 15.5, 18.3, 19.8, 22.4, 27.1, 29.1, 35.9, 41.5, 43.0, 45.3, 234.7, 217.6, 272.5, 271.5, 274.4, 333.1, 360.0, 422.7, 444.1, 426.5, 418.2, 407.9, 367.7, 348.1, 296.1], "Total Recorded Crime": [261.5, 238.5, 241.7, 248.3, 252.7, 258.8, 276.2, 278.5, 266.9, 284.8, 300.3, 297.2, 288.1, 268.9, 280.8, 267.8, 241.8, 221.0, 232.8, 259.9, 257.9, 238.7, 268.7, 272.2, 280.9, 286.6, 290.2, 292.8, 341.2, 320.0, 330.4, 339.9, 369.4, 398.3, 517.8, 563.3, 576.7, 576.6, 609.2, 648.9, 687.2, 491.5, 764.9, 925.7, 954.1, 985.7, 1098.3, 1261.7, 1159.3, 1193.2, 1207.2, 1054.9, 1052.8, 1197.1, 1168.4, 1072.3, 981.0, 985.8, 1074.0, 1214.9, 1388.9, 1488.6, 1624.7, 1746.7, 1921.3, 2082.2, 2256.7, 2378.5, 2501.5, 2501.2, 2657.3, 3054.4, 3182.6, 3349.0, 3426.6, 3351.6, 3969.0, 4256.4, 4318.1, 5332.7, 5180.8, 5123.9, 5419.5, 5971.2, 6579.9, 6544.2, 7038.6, 7243.9, 7695.0, 7765.3, 7394.0, 7678.9, 8986.5, 10396.8, 10991.0, 10838.8, 10276.5, 9947.4, 9796.8, 8815.7, 10207.7, 9917.2, 11358.8, 11376.1, 10606.4, 10368.9, 10060.2, 9105.6, 8575.0, 7854.2, 7453.3, 7162.1, 6599.3, 6528.3, 6638.8]}, "raw": {"Violence Against the Person": [2144, 1979, 1908, 2068, 2059, 1946, 1828, 1934, 2007, 2164, 2072, 2104, 1972, 2113, 2117, 2004, 1729, 1367, 1219, 1030, 1042, 1483, 1546, 1398, 1251, 1269, 1259, 1495, 1719, 1846, 1898, 1987, 2123, 1992, 1910, 2094, 2266, 2431, 2545, 2723, 2721, 2899, 2424, 2727, 3050, 3432, 4162, 4743, 4062, 4408, 5183, 5235, 6249, 6516, 6997, 7083, 7506, 7884, 9307, 10960, 12137, 13876, 15759, 17601, 17948, 20083, 23470, 25548, 26716, 29048, 31850, 37818, 41088, 47036, 52432, 61299, 63781, 71002, 77748, 82190, 87073, 94960, 97246, 100207, 108695, 111342, 114187, 121731, 125499, 141042, 158248, 176962, 184665, 190339, 201777, 205102, 218354, 212588, 239340, 256070, 581034, 600922, 708742, 799247, 845673, 838674, 814865, 748779, 709008, 699011, 665486, 626720, 601141, 634623, 779027], "Sexual Offences": [1723, 1689, 1582, 1596, 1492, 1575, 1556, 1578, 1751, 1752, 1749, 1789, 1962, 2072, 2496, 2706, 2489, 2083, 1983, 1703, 1908, 2704, 3070, 2841, 3037, 3030, 3160, 3126, 3428, 3533, 3397, 3474, 3546, 3291, 3270, 3520, 3970, 3835, 4358, 4646, 5018, 5015, 4626, 5608, 6766, 7784, 8079, 8546, 9329, 9999, 10922, 12015, 13185, 14633, 14967, 16317, 16096, 17078, 17103, 18635, 17691, 20024, 19937, 20404, 20010, 20518, 19903, 20155, 21308, 22501, 23391, 23526, 24163, 23621, 23505, 25736, 24698, 23731, 22203, 21313, 22367, 21843, 21107, 19424, 19729, 20410, 20222, 21456, 22684, 25154, 26529, 29733, 29044, 29423, 29528, 31284, 31971, 30274, 31391, 34045, 47185, 45878, 56652, 60412, 60924, 60287, 56042, 52166, 50185, 53006, 53940, 52760, 53599, 64229, 88219], "Robbery": [354, 279, 256, 234, 274, 241, 251, 223, 242, 232, 310, 226, 211, 198, 195, 155, 133, 85, 114, 134, 100, 203, 235, 211, 164, 151, 122, 136, 120, 110, 128, 167, 217, 208, 342, 219, 215, 182, 189, 209, 287, null, 342, 483, 685, 730, 821, 1033, 921, 979, 1101, 990, 1021, 800, 1002, 980, 812, 823, 965, 1194, 1692, 1900, 2014, 2349, 2517, 2483, 3066, 3736, 4474, 4564, 4815, 6041, 6273, 7465, 8926, 7338, 8666, 11311, 11611, 13730, 13150, 12482, 15006, 20282, 22837, 22119, 24890, 27463, 30020, 32633, 31437, 33163, 36195, 45323, 52894, 57845, 60007, 68074, 74035, 62652, 84277, 95154, 110271, 103736, 91010, 98198, 101376, 84773, 80130, 75105, 76189, 74688, 65155, 57828, 50236], "Burglary": [8352, 7017, 7463, 8452, 8737, 9590, 10518, 10761, 10501, 11382, 12976, 13355, 13285, 11906, 11886, 11944, 10587, 7252, 8407, 10196, 11068, 13442, 15526, 16078, 17750, 17732, 18017, 17741, 19391, 19359, 21778, 22478, 25670, 31049, 39607, 36742, 36432, 35813, 38026, 44773, 48653, 0, 49005, 52585, 55917, 58336, 73661, 107876, 114279, 111348, 112208, 91015, 92371, 95389, 97393, 88116, 75443, 74487, 85348, 104442, 130353, 133172, 150622, 164165, 191252, 217870, 232650, 251306, 274278, 264518, 285287, 414894, 423795, 442275, 428083, 384035, 473407, 515429, 510048, 598421, 560109, 544037, 618390, 718381, 805389, 808341, 892923, 866697, 931620, 900104, 817792, 825930, 1006813, 1219464, 1355274, 1369584, 1256682, 1239484, 1164583, 988432, 906468, 836027, 890099, 820013, 680358, 645068, 622012, 583710, 581584, 540645, 522683, 501048, 459795, 443212, 411454], "Theft & Handling": [63821, 58785, 60775, 61949, 63233, 64797, 69987, 71478, 68334, 74234, 78478, 77611, 75573, 70885, 75516, 71688, 65265, 59597, 62881, 69748, 67895, 62591, 71601, 72503, 72688, 74842, 76528, 77720, 92979, 84762, 86610, 89200, 96818, 103087, 140591, 161449, 167484, 168361, 180187, 192237, 203384, 219478, 231231, 277193, 276518, 280634, 307319, 333442, 318780, 339894, 358402, 308797, 308661, 365123, 350700, 316364, 291667, 302051, 330776, 369604, 419390, 456142, 500954, 545207, 604349, 653404, 721779, 763561, 797666, 807829, 853085, 911500, 952666, 1003645, 1009472, 998810, 1189863, 1267674, 1285672, 1487549, 1441253, 1416143, 1463469, 1603151, 1755853, 1705924, 1807981, 1884069, 2003873, 2052005, 1931274, 2012760, 2374409, 2761119, 2851638, 2751901, 2564608, 2452109, 2383946, 2144973, 2223620, 2145372, 3413319, 3249647, 2837862, 2739231, 2638784, 2422728, 2321580, 2132620, 2107446, 2074779, 1900944, 1845168, 1755436], "Fraud & Forgery": [3055, 3232, 3315, 3656, 4261, 4348, 5018, 4930, 5034, 5164, 5689, 6277, 6176, 5847, 5861, 5490, 5429, 4773, 4333, 4550, 4474, 5100, 6413, 7840, 10286, 10757, 11109, 11024, 12802, 12417, 12903, 13220, 14413, 15153, 17573, 18408, 18194, 18855, 18723, 16752, 17906, 17561, 13229, 16007, 17638, 17248, 16011, 16560, 18114, 24016, 25289, 31747, 29351, 30793, 31403, 32412, 31170, 27052, 27069, 30924, 34791, 39659, 42639, 46575, 51954, 54457, 56662, 58027, 62017, 64382, 74524, 78846, 89460, 99789, 108418, 110673, 117243, 123055, 119860, 120592, 122167, 118033, 105246, 106671, 123101, 121791, 126093, 134767, 133431, 132976, 133873, 134490, 147909, 174742, 168600, 162836, 145289, 133016, 136225, 136232, 334773, 319324, 183683, 170210, 160740, 129481, 105181, 71137, 72314, 73259, 72441, 72768, 62489, 8, 0], "Criminal Damage": [582, 548, 444, 423, 445, 532, 582, 545, 517, 535, 625, 585, 586, 698, 724, 638, 594, 410, 187, 229, 166, 304, 329, 547, 322, 281, 319, 300, 316, 281, 279, 354, 351, 408, 408, 396, 441, 434, 424, 533, 572, 0, 727, 697, 963, 1292, 1659, 2316, 2361, 2860, 3723, 4116, 4518, 4993, 5003, 5309, 5251, 2184, 2559, 2965, 3607, 4083, 4802, 5606, 6256, 6935, 7891, 8520, 10071, 10695, 12184, 4645, 5496, 7413, 41855, 52815, 67086, 78546, 93042, 297373, 306272, 320469, 359450, 386730, 417814, 443316, 497840, 538964, 583588, 588961, 593923, 630084, 733445, 821141, 892623, 906746, 928329, 913991, 951274, 861846, 945682, 960087, 1114472, 1209912, 1187477, 1173848, 1177151, 1030038, 930327, 800645, 695084, 626008, 529712, 506014, 503842], "Drug Offences": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 4994, 6589, 8050, 7332, 7137, 7793, 9201, 9998, 11379, 13809, 14840, 18340, 21272, 22122, 23336, 121866, 113458, 143320, 143511, 145837, 178479, 194233, 229913, 243536, 235584, 232922, 229099, 208003, 198215, 169964], "Total Recorded Crime": [82426, 76025, 77934, 80962, 83260, 86172, 92907, 94654, 91665, 98822, 105279, 105287, 103132, 97171, 101997, 97933, 89387, 77972, 80653, 88864, 87762, 87827, 100827, 103258, 107320, 110206, 112574, 113986, 133460, 125703, 130469, 134581, 147031, 159278, 208175, 227285, 233359, 234372, 248803, 266265, 283220, 203771, 305114, 358655, 364889, 372760, 415010, 478394, 472517, 498580, 522684, 459869, 461435, 524506, 513559, 472989, 434327, 438085, 479710, 545562, 626509, 675626, 743713, 806900, 896424, 978076, 1067963, 1133882, 1199859, 1207354, 1289090, 1488638, 1555995, 1646081, 1690219, 1657669, 1963360, 2105631, 2135713, 2636517, 2561499, 2536737, 2688235, 2963764, 3262422, 3247030, 3499107, 3611883, 3847410, 3892201, 3715767, 3870748, 4543611, 5276173, 5591717, 5526255, 5252980, 5100241, 5036552, 4545337, 5301187, 5170843, 5974960, 6013759, 5637511, 5555172, 5427558, 4952277, 4702697, 4338295, 4150916, 4023007, 3733059, 3717768, 3811268]}};
+
+const COLORS = {
+  'Total Recorded Crime': '#ef4444',
+  'Violence Against the Person': '#f97316',
+  'Sexual Offences': '#a855f7',
+  'Robbery': '#ec4899',
+  'Burglary': '#3b82f6',
+  'Theft & Handling': '#22d3ee',
+  'Fraud & Forgery': '#84cc16',
+  'Criminal Damage': '#facc15',
+  'Drug Offences': '#10b981'
+};
+
+const CAT_ORDER = [
+  'Total Recorded Crime',
+  'Theft & Handling',
+  'Burglary',
+  'Criminal Damage',
+  'Violence Against the Person',
+  'Fraud & Forgery',
+  'Sexual Offences',
+  'Robbery',
+  'Drug Offences'
+];
+
+let chart;
+let activeCategories = new Set(CAT_ORDER);
+let currentView = 'rate'; // 'rate' or 'raw'
+
+function buildControls() {
+  const container = document.getElementById('controls');
+  container.innerHTML = '';
+  CAT_ORDER.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn' + (activeCategories.has(cat) ? ' active' : '');
+    btn.textContent = cat;
+    const color = COLORS[cat];
+    if (activeCategories.has(cat)) {
+      btn.style.backgroundColor = color;
+      btn.style.borderColor = color;
+      btn.style.color = '#fff';
+    } else {
+      btn.style.backgroundColor = 'transparent';
+      btn.style.borderColor = color;
+      btn.style.color = color;
+    }
+    btn.onclick = () => toggleCategory(cat);
+    container.appendChild(btn);
+  });
+}
+
+function toggleCategory(cat) {
+  if (activeCategories.has(cat)) {
+    if (activeCategories.size > 1) activeCategories.delete(cat);
+  } else {
+    activeCategories.add(cat);
+  }
+  buildControls();
+  updateChart();
+}
+
+function setView(view) {
+  currentView = view;
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.includes(view === 'rate' ? '100k' : 'Raw'));
+  });
+  updateChart();
+  updateAggregates();
+}
+
+function updateAggregates() {
+  const lastIdx = DATA.years.length - 1;
+  const year = DATA.years[lastIdx];
+  document.getElementById('agg-year-label').textContent = year + '/' + String(year + 1).slice(2);
+  
+  const grid = document.getElementById('agg-grid');
+  grid.innerHTML = '';
+  
+  CAT_ORDER.forEach(cat => {
+    const rateVal = DATA.categories[cat][lastIdx];
+    const rawVal = DATA.raw[cat][lastIdx];
+    
+    const card = document.createElement('div');
+    card.className = 'agg-card';
+    
+    const color = COLORS[cat];
+    const displayVal = currentView === 'rate'
+      ? (rateVal !== null ? rateVal.toLocaleString('en-GB', {maximumFractionDigits: 1}) + ' per 100k' : 'N/A')
+      : (rawVal !== null ? rawVal.toLocaleString('en-GB') + ' offences' : 'N/A');
+    
+    const otherVal = currentView === 'rate'
+      ? (rawVal !== null ? rawVal.toLocaleString('en-GB') + ' offences' : '')
+      : (rateVal !== null ? rateVal.toLocaleString('en-GB', {maximumFractionDigits: 1}) + ' per 100k' : '');
+    
+    card.innerHTML = '<div class="label">' + cat + '</div>'
+      + '<div class="value" style="color:' + color + '">' + displayVal + '</div>'
+      + '<div class="sub">' + otherVal + '</div>';
+    grid.appendChild(card);
+  });
+}
+
+function getDatasets() {
+  const source = currentView === 'rate' ? DATA.categories : DATA.raw;
+  return CAT_ORDER.filter(cat => activeCategories.has(cat)).map(cat => ({
+    label: cat,
+    data: source[cat],
+    borderColor: COLORS[cat],
+    backgroundColor: COLORS[cat] + '18',
+    borderWidth: cat === 'Total Recorded Crime' ? 3 : 2,
+    pointRadius: 0,
+    pointHitRadius: 8,
+    pointHoverRadius: 5,
+    tension: 0.25,
+    spanGaps: true
+  }));
+}
+
+function updateChart() {
+  chart.data.datasets = getDatasets();
+  chart.options.scales.y.title.text = currentView === 'rate' ? 'Offences per 100,000 population' : 'Total offences recorded';
+  chart.options.plugins.tooltip.callbacks.label = function(ctx) {
+    const val = ctx.parsed.y;
+    if (val === null) return ctx.dataset.label + ': N/A';
+    if (currentView === 'rate') {
+      return ctx.dataset.label + ': ' + val.toLocaleString('en-GB', {maximumFractionDigits: 1}) + ' per 100k';
+    } else {
+      return ctx.dataset.label + ': ' + val.toLocaleString('en-GB');
+    }
+  };
+  chart.update();
+}
+
+function createChart() {
+  const ctx = document.getElementById('crimeChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: DATA.years, datasets: getDatasets() },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e2130ee',
+          titleColor: '#fff',
+          bodyColor: '#ccc',
+          borderColor: '#333',
+          borderWidth: 1,
+          padding: 12,
+          bodySpacing: 4,
+          callbacks: {
+            title: function(items) { 
+              const y = items[0].label;
+              return 'Year: ' + y;
+            },
+            label: function(ctx) {
+              const val = ctx.parsed.y;
+              if (val === null) return ctx.dataset.label + ': N/A';
+              return ctx.dataset.label + ': ' + val.toLocaleString('en-GB', {maximumFractionDigits: 1}) + ' per 100k';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#ffffff0a' },
+          ticks: { color: '#888', maxTicksLimit: 20 },
+          title: { display: true, text: 'Year', color: '#888' }
+        },
+        y: {
+          grid: { color: '#ffffff0a' },
+          ticks: { color: '#888', callback: function(v) { return v.toLocaleString('en-GB'); } },
+          title: { display: true, text: 'Offences per 100,000 population', color: '#888' },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+}
+
+// Init
+buildControls();
+createChart();
+updateAggregates();
+</script>
+</body>
+</html>
